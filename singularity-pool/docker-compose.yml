@@ -36,7 +36,7 @@ services:
       # --- Payout FALLBACK ---
       # Only used for miners that connect WITHOUT a Bitcoin address as their username.
       # >>> CHANGE THIS to YOUR OWN Bitcoin address. <<<
-      PAYOUT_ADDRESS: "bc1q6278q0a0ttmhjc0jhhaut6ekk2waf045yhql3s"
+      PAYOUT_ADDRESS: ""
       # Coinbase tag written into every block this pool finds. Shows in the block's
       # coinbase details on mempool.space / explorers as "SINGULARITY on Umbrel".
       # Register the name officially via a PR to github.com/mempool/mining-pools
