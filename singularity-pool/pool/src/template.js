@@ -227,7 +227,15 @@ export class TemplateManager extends EventEmitter {
     super();
     this.rpc = rpc;
     this.cfg = cfg;
-    this.scriptPubKey = addressToScript(cfg.payoutAddress, cfg.network);
+    this.hasDefaultPayout = !!cfg.payoutAddress;
+    // Default coinbase script: the configured fallback address, OR — in per-miner
+    // mode (no fallback) — a fixed placeholder script used ONLY for the
+    // never-broadcast consensus self-audit and the empty-job template skeleton.
+    // It is NEVER a real payout: every real coinbase uses the per-miner script,
+    // and address-less miners are rejected, so the placeholder cannot be paid.
+    this.scriptPubKey = this.hasDefaultPayout
+      ? addressToScript(cfg.payoutAddress, cfg.network)
+      : Buffer.concat([Buffer.from([0x00, 0x14]), Buffer.alloc(20, 0)]); // valid P2WPKH skeleton (audit only)
     this.enTotal = cfg.extranonce1Size + cfg.extranonce2Size;
     this.current = null;          // current Job
     this.jobs = new Map();        // id -> Job (recent window)

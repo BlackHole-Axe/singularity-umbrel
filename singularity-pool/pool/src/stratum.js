@@ -174,6 +174,13 @@ export class Client {
     if (payoutErr && (candidate.length >= 20 || /^(bc1|tb1|bcrt1)/i.test(candidate))) {
       this.log(`🟥 PAYOUT WARNING: "${candidate}" looks like an address but is INVALID for ${this.pool.cfg.network} (${payoutErr.message}). This miner's blocks will pay the DEFAULT wallet ${this.payoutAddress} — fix the worker username!`);
     }
+    // PER-MINER MODE: with no global PAYOUT_ADDRESS fallback, a miner that did not
+    // supply a valid Bitcoin address has nowhere to be paid — reject it clearly
+    // rather than ever mining to the placeholder script.
+    if (!this.payoutScript && !this.pool.tm.hasDefaultPayout) {
+      this.log(`rejected (no payout): "${this.worker}" — use your Bitcoin address (bc1q…) as the Stratum username`);
+      return this.result(id, false, E.UNAUTHORIZED);
+    }
     this.authorized = true;
     const m = this.pool.registry.miner(this.worker);
     m.sessions++;
@@ -283,6 +290,9 @@ export class Client {
     if (!this.subscribed) return this.result(id, null, E.NOT_SUBSCRIBED);
     const workerName = String(params?.[0] ?? this.worker ?? '').trim() || this.worker;
     if (!this.authorized) { this.worker = workerName || `anon#${this.id}`; this.authorized = true; reg.miner(this.worker).sessions++; }
+    // per-miner mode safety: never accept work from a miner with no payout script
+    // and no global fallback (its coinbase would have nowhere to pay).
+    if (!this.payoutScript && !this.pool.tm.hasDefaultPayout) return this.result(id, null, E.UNAUTHORIZED);
     const jobId = String(params?.[1] ?? '');
     const en2 = String(params?.[2] ?? '').toLowerCase();
     const ntimeHex = String(params?.[3] ?? '').toLowerCase();

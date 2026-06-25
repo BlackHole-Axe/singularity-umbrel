@@ -26,13 +26,19 @@ process.on('unhandledRejection', (e) => { console.error(`FATAL unhandledRejectio
 
 async function main() {
   log(`◉ SINGULARITY v${VERSION} solo pool starting`);
-  if (!CONFIG.payoutAddress) { console.error('PAYOUT_ADDRESS is required'); process.exit(1); }
-  // the reward chain, stated explicitly at startup so there is never any doubt:
-  try {
-    const spk = addressToScript(CONFIG.payoutAddress, CONFIG.network);
-    log(`payout (default): ${CONFIG.payoutAddress} -> scriptPubKey ${spk.toString('hex')}`);
-    log('per-miner wallets: username "ADDRESS.worker" overrides the payout for that miner');
-  } catch (e) { console.error(`PAYOUT_ADDRESS invalid for ${CONFIG.network}: ${e.message}`); process.exit(1); }
+  // PAYOUT_ADDRESS is an OPTIONAL fallback for miners that connect without a
+  // Bitcoin address as their username. Empty => "per-miner mode": every miner
+  // MUST use its own address as the Stratum username (address-less miners are
+  // rejected). This makes the pool safe to ship publicly with no default wallet.
+  if (!CONFIG.payoutAddress) {
+    log('⚠ no default PAYOUT_ADDRESS — per-miner mode: each miner must use its own Bitcoin address as the Stratum username (address-less miners are rejected; no funds ever go to anyone but the finder).');
+  } else {
+    try {
+      const spk = addressToScript(CONFIG.payoutAddress, CONFIG.network);
+      log(`payout (default): ${CONFIG.payoutAddress} -> scriptPubKey ${spk.toString('hex')}`);
+      log('per-miner wallets: username "ADDRESS.worker" overrides the payout for that miner');
+    } catch (e) { console.error(`PAYOUT_ADDRESS invalid for ${CONFIG.network}: ${e.message}`); process.exit(1); }
+  }
 
   const rpc = new Rpc(CONFIG.rpcUrl, CONFIG.rpcUser, CONFIG.rpcPass);
 
