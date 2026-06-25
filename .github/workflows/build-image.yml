@@ -1,0 +1,43 @@
+name: Build & publish multi-arch image
+
+# Builds the pool image for amd64 + arm64 and publishes it to GHCR.
+# Uses the repo's built-in GITHUB_TOKEN — no manual secret needed.
+# Trigger it from the Actions tab (Run workflow), or it runs when pool/ changes.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["singularity-pool/pool/**"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3        # enables arm64 emulation
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: ./singularity-pool/pool
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/blackhole-axe/singularity-pool:1.7.0
+            ghcr.io/blackhole-axe/singularity-pool:latest
+          labels: org.opencontainers.image.source=https://github.com/BlackHole-Axe/singularity-umbrel
+      - name: Show the digest to pin in the official store
+        run: |
+          echo "### Multi-arch image published" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "image: ghcr.io/blackhole-axe/singularity-pool:1.7.0@${{ steps.build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
