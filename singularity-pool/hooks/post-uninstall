@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Clean uninstall — remove the locally-built image and any stray containers so
+# nothing is left behind. Umbrel already removed the containers + app-data dir;
+# this guarantees the on-device built image is gone too.
+# Self-contained on purpose: Umbrel copies only this file out before deleting app-data.
+set -euo pipefail
+
+docker rmi -f singularity-pool:umbrel-local 2>/dev/null || true
+docker ps -aq --filter "name=singularity-pool_" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
+
+echo "singularity-pool: local image and any stray containers removed"

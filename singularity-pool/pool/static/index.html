@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SINGULARITY // solo pool</title>
+<style>
+  :root{
+    --bg:#050505; --card:#0a0a0d; --line:#1b1b20;
+    --txt:#d8d8de;            /* primary values  */
+    --lbl:#56565f;            /* labels          */
+    --dim:#7c7c86;            /* secondary       */
+    --hash:#56d9ff;           /* hashrate = cyan */
+    --gold:#ffd166;           /* best share / BTC / blocks = gold */
+    --ok:#42dd8a;             /* accepted / live = green */
+    --bad:#ff6259;            /* rejected = red  */
+    --diff:#b48cff;           /* difficulty = violet */
+    --addr:#6fa2ff;           /* wallets = blue  */
+    --hex:#8f9aa4;            /* hashes/hex = steel */
+  }
+  *{box-sizing:border-box;margin:0;padding:0;min-width:0}
+  html,body{background:var(--bg);overflow-x:hidden;max-width:100%;touch-action:pan-y}
+  body{font:13px/1.55 ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:var(--txt);
+       padding:22px max(26px, env(safe-area-inset-right)) 60px max(26px, env(safe-area-inset-left));
+       max-width:1380px;margin:0 auto}
+  .sep{color:#2a2a31;user-select:none}
+  .lbl{color:var(--lbl)}
+
+  /* ---- logo ---- */
+  pre.logo{color:#e9e9ee;font-size:clamp(5.5px, 2.05vw, 12px);line-height:1.15;letter-spacing:clamp(0px, .15vw, 1px);white-space:pre}
+  .tagline{margin:6px 0 18px;color:var(--dim)}
+  .tagline b{color:#fff;font-weight:600}
+  .tagline .sl{color:var(--hash)}
+
+  /* ---- top stats ---- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px 24px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .stat .k{color:var(--lbl);font-size:10px;letter-spacing:2px}
+  .stat .v{font-size:21px;font-weight:600;margin-top:2px}
+  .v.hashc{color:var(--hash)}
+  .v.adj-down{color:var(--ok)} .v.adj-up{color:var(--bad)} .v.gold{color:var(--gold)} .v.diffc{color:var(--diff)} .v.white{color:#f2f2f5}
+
+  /* ---- health bar (traffic lights) ---- */
+  .health{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+  .pill{display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:11px}
+  .pill .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--dim)}
+  .pill .dot.ok{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+  .pill .dot.warn{background:var(--gold);box-shadow:0 0 6px var(--gold)}
+  .pill .dot.bad{background:var(--bad);box-shadow:0 0 6px var(--bad);animation:bl 1.1s steps(2) infinite}
+  .pill .pl{color:var(--lbl);letter-spacing:1px}
+  .pill .pv{color:var(--txt);font-weight:600}
+
+  /* ---- tools (copy diag) ---- */
+  .tools{display:flex;gap:8px;margin:12px 0 0;flex-wrap:wrap;align-items:center}
+  .apilbl{color:var(--lbl);font-size:10px;letter-spacing:2px;margin-left:4px}
+  .btn{background:var(--card);border:1px solid #24242b;color:var(--dim);border-radius:5px;padding:6px 13px;font:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;transition:border-color .2s,color .2s}
+  .btn:hover{border-color:#3a3a44;color:var(--txt)}
+  .btn.done{border-color:var(--ok);color:var(--ok)}
+  .btn.api{color:var(--hash);border-color:#1c2a30}
+  .btn.api:hover{border-color:var(--hash);color:#aef0ff}
+
+  /* ---- alerts ---- */
+  .alerts{margin:12px 0 0;display:none;flex-direction:column;gap:6px}
+  .alerts.show{display:flex}
+  .alert{display:flex;align-items:center;gap:9px;border-radius:5px;padding:8px 12px;font-size:12px;overflow-wrap:anywhere}
+  .alert.bad{border:1px solid #3a1815;background:#0e0605;color:var(--bad)}
+  .alert.warn{border:1px solid #332a0f;background:#0c0a04;color:var(--gold)}
+
+  /* ---- trends (sparklines) ---- */
+  .trends{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0 0}
+  .trend{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+  .trend .th{display:flex;justify-content:space-between;align-items:baseline}
+  .trend .tl{color:var(--lbl);font-size:9.5px;letter-spacing:2px}
+  .trend .tv{font-weight:600}
+  .trend svg{display:block;width:100%;height:34px;margin-top:6px;overflow:visible}
+
+  /* ---- best share ribbon ---- */
+  .best{margin:14px 0 0;padding:10px 12px;border:1px solid #2b240f;background:#0c0a04;border-radius:4px;display:none;overflow-wrap:anywhere}
+  .best.show{display:block}
+  .best .hd{color:var(--gold);letter-spacing:1px}
+  .best .big{color:var(--gold);font-size:17px;font-weight:700}
+  .best .hx{color:var(--hex);word-break:break-all}
+  .best .hx b{color:#e8d9a8;font-weight:600}
+  .best .who{color:var(--addr);overflow-wrap:anywhere}
+  .best .pct{color:#fff}
+
+  /* ---- job line ---- */
+  .job{margin:14px 0 22px;color:var(--dim);display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;overflow-wrap:anywhere}
+  .job .k{color:var(--lbl)}
+  .job .v{color:var(--txt)}
+  .job .btc{color:var(--gold)}
+  .job .hx{color:var(--hex)}
+  .job .live{color:var(--ok);font-weight:700}
+  .job .down{color:var(--bad);font-weight:700}
+  .blink{animation:bl 1.1s steps(2) infinite}
+  @keyframes bl{to{opacity:.25}}
+
+  /* ---- miners: CARDS ---- */
+  .mh{color:var(--lbl);font-size:10px;letter-spacing:2px;margin:0 0 10px}
+  .miners{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px;transition:opacity .4s,border-color .3s}
+  .card:hover{border-color:#2c2c34}
+  .card.off{opacity:.32}
+  .card .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .card .top .nm{min-width:0}
+  .card .nm{color:#f0f0f4;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .ago{color:var(--dim);font-size:11px;white-space:nowrap}
+  .card .ago.hot{color:var(--ok)}
+  .card .agent{color:var(--dim);font-size:10.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .agent .vr{color:var(--diff)}
+  .card .ad{color:var(--addr);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .hr{color:var(--hash);font-size:24px;font-weight:700;margin:7px 0 8px;line-height:1.1}
+  .card .hr small{font-size:13px;font-weight:600;color:#3e93ac}
+  .card .row{display:flex;gap:0 16px;flex-wrap:wrap}
+  .card .cell .k{color:var(--lbl);font-size:9.5px;letter-spacing:1.5px}
+  .card .cell .v{font-size:13px;font-weight:600}
+  .v.acc{color:var(--ok)} .v.rej{color:var(--bad)} .v.rej.zero{color:#2e3a33}
+  .v.df{color:var(--diff)} .v.bs{color:var(--gold)}
+  .v.eff{color:var(--ok)} .v.eff.mid{color:var(--gold)} .v.eff.low{color:var(--bad)}
+  .card .bd{color:#8a4a45;font-size:9.5px;line-height:1.3;margin-top:2px;min-height:1em}
+  .card .crack{margin-top:7px;border-top:1px solid #111116;padding-top:6px;font-size:10.5px;color:var(--hex);overflow:hidden;white-space:nowrap}
+  .card .crack .p{color:#3a4a54}
+  .card .crack b{color:#cfd6db;font-weight:600}
+
+  /* ---- blocks ---- */
+  .bsec{margin-top:30px}
+  .bhd{color:var(--gold);letter-spacing:1px;margin-bottom:8px}
+  .bcard{border:1px solid #2b240f;background:#0c0a04;border-radius:4px;padding:10px 12px;margin-bottom:8px;overflow-wrap:anywhere}
+  .bcard .t{color:var(--gold);font-weight:700}
+  .bcard .hx{color:var(--hex);word-break:break-all}
+  .none{color:#33333b}
+
+  /* ---- connect miners box ---- */
+  .connect{margin-top:30px;border:1px solid var(--line);background:var(--card);border-radius:6px;padding:13px 15px;overflow-wrap:anywhere}
+  .connect .ch{color:var(--hash);letter-spacing:1px;margin-bottom:9px}
+  .connect .crow{display:flex;gap:14px;padding:3px 0;align-items:baseline}
+  .connect .ck{color:var(--lbl);font-size:10px;letter-spacing:2px;min-width:64px;flex:none}
+  .connect .cv{color:var(--txt)}
+  .connect .cv.url{color:var(--hash);font-weight:600}
+  .connect .cv .addr{color:var(--addr)}
+  .connect .cnote{color:var(--dim);font-size:11px;margin-top:9px;border-top:1px solid #15151a;padding-top:8px}
+  .connect .cnote b{color:#cfd6db}
+
+  /* ---- donate ---- */
+  .donate{margin-top:28px;border:1px solid #2b240f;background:#0c0a04;border-radius:6px;padding:11px 14px}
+  .donate .dh{color:var(--gold);letter-spacing:1px}
+  .donate .dlbl{color:var(--dim);font-size:11px;margin-left:8px}
+  .donate .daddr{color:var(--addr);font-size:12px;margin-top:7px;cursor:pointer;word-break:break-all;user-select:all}
+  .donate .daddr:hover{color:#9cc0ff}
+  .donate .daddr.copied{color:var(--ok)}
+  .donate .daddr.copied::after{content:" ✓ copied";color:var(--ok)}
+
+  /* ---- block found overlay ---- */
+  .ovl{position:fixed;inset:0;background:rgba(3,3,3,.96);display:none;align-items:center;justify-content:center;z-index:50;padding:14px;overflow-y:auto}
+  .ovl.show{display:flex}
+  .obox{max-width:860px;width:100%;border:1px solid #5a4a16;background:#0b0903;border-radius:6px;padding:22px 24px;margin:auto}
+  .obanner{color:var(--gold);text-align:center;font-weight:700;letter-spacing:1px;white-space:nowrap;overflow:hidden;animation:bl 1s steps(2) infinite}
+  .otable{width:100%;margin-top:16px;border-collapse:collapse}
+  .otable td{padding:5px 8px;border-bottom:1px solid #1c170a;vertical-align:top}
+  .otable td:first-child{color:var(--lbl);width:120px;letter-spacing:1px;font-size:10.5px}
+  .otable .hx{color:var(--hex);word-break:break-all}
+  .otable .gold{color:var(--gold);font-weight:700}
+  .otable .ok{color:var(--ok);word-break:break-all} .otable .addr{color:var(--addr);word-break:break-all} .otable .diffc{color:var(--diff)}
+  .oclose{margin-top:16px;color:var(--dim);text-align:center;cursor:pointer}
+  .oclose:hover{color:#fff}
+  .conn{position:fixed;right:14px;bottom:10px;color:#3a2c2c;font-size:11px;display:none}
+  .conn.show{display:block;color:var(--bad)}
+
+  /* ---- mobile ---- */
+  @media (max-width:680px){
+    body{padding:14px max(12px, env(safe-area-inset-right)) 48px max(12px, env(safe-area-inset-left));font-size:12px}
+    .tagline{font-size:11px}
+    .stats{grid-template-columns:repeat(2,1fr);gap:10px 12px}
+    .stat .v{font-size:16px}
+    .stat .k{font-size:9px;letter-spacing:1px}
+    .miners{grid-template-columns:1fr}
+    .card .hr{font-size:21px}
+    .job{gap:3px 10px;font-size:11px}
+    .best{font-size:11px}
+    .best .big{font-size:14px}
+    .otable td:first-child{width:88px}
+  }
+</style>
+</head>
+<body>
+<pre class="logo">███ ███ █  █ ████ █  █ █   ████ ███  ███ ███ █ █
+█    █  ██ █ █    █  █ █   █  █ █  █  █  █   █ █
+███  █  █ ██ █ ██ █  █ █   ████ ███   █   █  ███
+  █  █  █  █ █  █ █  █ █   █  █ █ █   █   █   █
+███ ███ █  █ ████ ████ ███ █  █ █  █ ███  █   █</pre>
+<div class="tagline"><b>SINGULARITY</b> <span class="sl">//</span> SOLO BITCOIN POOL <span class="sep">—</span> past the event horizon, every hash counts</div>
+
+<div class="stats">
+  <div class="stat"><div class="k">POOL HASHRATE</div><div class="v hashc" id="s-hr">—</div></div>
+  <div class="stat"><div class="k">BEST SHARE</div><div class="v gold" id="s-best">—</div></div>
+  <div class="stat"><div class="k">NETWORK DIFF</div><div class="v diffc" id="s-nd">—</div></div>
+  <div class="stat"><div class="k">NEXT BLOCK</div><div class="v white" id="s-h">—</div></div>
+  <div class="stat"><div class="k">MINERS</div><div class="v white" id="s-m">—</div></div>
+  <div class="stat"><div class="k">BLOCKS FOUND</div><div class="v gold" id="s-b">—</div></div>
+  <div class="stat"><div class="k">BTC / USD</div><div class="v gold" id="s-price">—</div></div>
+  <div class="stat"><div class="k">NEXT DIFF</div><div class="v" id="s-adj">—</div></div>
+  <div class="stat"><div class="k">RETARGET</div><div class="v white" id="s-ret" style="font-size:15px;line-height:1.9">—</div></div>
+</div>
+
+<div class="health" id="health">
+  <div class="pill"><span class="dot" id="h-zmq-d"></span><span class="pl">ZMQ</span> <span class="pv" id="h-zmq">—</span></div>
+  <div class="pill"><span class="dot" id="h-node-d"></span><span class="pl">NODE</span> <span class="pv" id="h-node">—</span></div>
+  <div class="pill"><span class="dot" id="h-gbt-d"></span><span class="pl">GBT</span> <span class="pv" id="h-gbt">—</span></div>
+  <div class="pill"><span class="dot" id="h-rej-d"></span><span class="pl">REJECT</span> <span class="pv" id="h-rej">—</span></div>
+  <div class="pill"><span class="dot" id="h-prog-d"></span><span class="pl">PROGRESS</span> <span class="pv" id="h-prog">—</span></div>
+</div>
+
+<div class="tools">
+  <button class="btn" id="copydiag" onclick="copyDiag()">⧉ COPY DIAG (for AI)</button>
+  <span class="apilbl">APIs</span>
+  <button class="btn api" onclick="window.open('/api/diag','_blank')">/api/diag</button>
+  <button class="btn api" onclick="window.open('/api/state','_blank')">/api/state</button>
+  <button class="btn api" onclick="window.open('/api/logs?format=text&amp;n=400','_blank')">/api/logs</button>
+  <button class="btn api" onclick="window.open('/events','_blank')">/events</button>
+</div>
+
+<div class="alerts" id="alerts"></div>
+
+<div class="trends">
+  <div class="trend">
+    <div class="th"><span class="tl">POOL HASHRATE · TREND</span><span class="tv hashc" id="tr-hr">—</span></div>
+    <svg id="spark-hr" viewBox="0 0 100 34" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="trend">
+    <div class="th"><span class="tl">PROGRESS TO BLOCK · TREND</span><span class="tv gold" id="tr-prog">—</span></div>
+    <svg id="spark-prog" viewBox="0 0 100 34" preserveAspectRatio="none"></svg>
+  </div>
+</div>
+
+<div class="best" id="best">
+  <span class="hd">═══«BEST SHARE»═══</span>
+  <span class="big" id="b-val"></span>
+  <span class="sep">·</span> <span class="pct" id="b-pct"></span> <span class="lbl">of a block</span>
+  <span class="sep">·</span> <span class="lbl">by</span> <span class="who" id="b-who"></span>
+  <span class="sep">·</span> <span class="lbl" id="b-ago"></span><br>
+  <span class="lbl">hash</span> <span class="hx" id="b-hash"></span>
+</div>
+
+<div class="job" id="job">
+  <span><span class="k">job</span> <span class="v" id="j-id">—</span></span>
+  <span><span class="k">kind</span> <span class="v" id="j-kind">—</span></span>
+  <span><span class="k">txs</span> <span class="v" id="j-tx">—</span></span>
+  <span><span class="k">reward</span> <span class="btc" id="j-rw">—</span></span>
+  <span><span class="k">age</span> <span class="v" id="j-age">—</span></span>
+  <span><span class="k">gbt</span> <span class="v" id="j-gbt">—</span></span>
+  <span><span class="k">zmq</span> <span id="j-zmq">—</span></span>
+  <span><span class="k">prev</span> <span class="hx" id="j-prev">—</span></span>
+  <span><span class="k">uptime</span> <span class="v" id="j-up">—</span></span>
+  <span class="live blink" id="j-live">▮ LIVE</span>
+</div>
+
+<div class="mh">═══«MINERS»═══</div>
+<div class="miners" id="miners"></div>
+
+<div class="bsec">
+  <div class="bhd">═[!]═«BL0CKS FOUND»═[!]═</div>
+  <div id="blocks"><div class="none">none yet — every share is a lottery ticket</div></div>
+</div>
+
+<div class="connect">
+  <div class="ch">═══«CONNECT MINERS»═══</div>
+  <div class="crow"><span class="ck">STRATUM</span><span class="cv url" id="c-url">stratum+tcp://…:2038</span></div>
+  <div class="crow"><span class="ck">PORT</span><span class="cv">2038</span></div>
+  <div class="crow"><span class="ck">USER</span><span class="cv">your Bitcoin <span class="addr">address</span> (bc1q…) <span class="sep">·</span> or <span class="addr">address.worker</span></span></div>
+  <div class="crow"><span class="ck">PASS</span><span class="cv">x <span class="lbl">(anything)</span></span></div>
+  <div class="cnote">Mining port is <b>2038</b> — not the dashboard port <b>3337</b>. Each miner is paid to the address it uses as its username; a plain name falls back to the pool's default address.</div>
+</div>
+
+<div class="ovl" id="ovl">
+  <div class="obox">
+    <div class="obanner">═[!]══«BL0CK FOUND»══[!]══«BL0CK FOUND»══[!]═</div>
+    <table class="otable">
+      <tr><td>HEIGHT</td><td class="gold" id="o-h"></td></tr>
+      <tr><td>HASH</td><td class="hx" id="o-hash"></td></tr>
+      <tr><td>WORKER</td><td class="ok" id="o-worker"></td></tr>
+      <tr><td>PAYOUT</td><td class="addr" id="o-pay"></td></tr>
+      <tr><td>REWARD</td><td class="gold" id="o-rw"></td></tr>
+      <tr><td>SHARE DIFF</td><td class="diffc" id="o-sd"></td></tr>
+      <tr><td>NETWORK DIFF</td><td class="diffc" id="o-nd"></td></tr>
+      <tr><td>NONCE</td><td class="hx" id="o-nonce"></td></tr>
+      <tr><td>VERSION</td><td class="hx" id="o-ver"></td></tr>
+      <tr><td>NTIME</td><td class="hx" id="o-nt"></td></tr>
+      <tr><td>TXS</td><td id="o-tx"></td></tr>
+      <tr><td>SUBMIT</td><td class="ok" id="o-sub"></td></tr>
+    </table>
+    <div class="oclose" onclick="document.getElementById('ovl').classList.remove('show')">[ dismiss ]</div>
+  </div>
+</div>
+<div class="conn" id="conn">▮ reconnecting…</div>
+<div class="donate">
+  <span class="dh">♥ SUPPORT THE DEVELOPER</span><span class="dlbl">voluntary — the pool stays 100% zero-fee, blocks pay you</span>
+  <div class="daddr" id="donate-addr" onclick="copyDonate()" title="click to copy">bc1q6278q0a0ttmhjc0jhhaut6ekk2waf045yhql3s</div>
+</div>
+
+<div style="margin-top:34px;color:#2c2c33;font-size:10px">◉ SINGULARITY <span id="ver">v?</span> <span class="sep">·</span> if this version doesn't match your build, hard-refresh</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const UNITS = ['', 'K', 'M', 'G', 'T', 'P', 'E'];
+function fmtN(v) {
+  if (!v || v <= 0) return '0';
+  let u = 0; while (v >= 1000 && u < UNITS.length - 1) { v /= 1000; u++; }
+  return v.toFixed(v >= 100 ? 0 : 2) + UNITS[u];
+}
+function fmtHrParts(v) {
+  if (!v || v <= 0) return ['0', 'H/s'];
+  let u = 0; while (v >= 1000 && u < UNITS.length - 1) { v /= 1000; u++; }
+  return [v.toFixed(v >= 100 ? 0 : 2), (UNITS[u] ? UNITS[u] : '') + 'H/s'];
+}
+function ago(t, now) {
+  if (!t) return '—';
+  const s = Math.max(0, (now - t) / 1000);
+  if (s < 60) return s.toFixed(0) + 's';
+  if (s < 3600) return (s/60).toFixed(0) + 'm';
+  return (s/3600).toFixed(1) + 'h';
+}
+function hashHtml(h) {
+  if (!h) return '';
+  const m = /^(0*)(.*)$/.exec(h);
+  return `<span>${m[1]}</span><b>${m[2]}</b>`;
+}
+const shortAddr = (a) => !a ? '' : (a.length > 24 ? a.slice(0, 10) + '…' + a.slice(-6) : a);
+function fmtPct(p) {
+  if (p >= 1) return p.toFixed(1) + '%';
+  if (p >= 0.01) return p.toFixed(2) + '%';
+  if (p >= 0.0001) return p.toFixed(4) + '%';
+  return p.toFixed(6) + '%';
+}
+function workerShort(name, address) {
+  if (address && name.startsWith(address + '.')) return name.slice(address.length + 1);
+  if (address && name === address) return shortAddr(address);
+  return name;
+}
+function rejText(m) {
+  const rj = m.rejects || {};
+  const p = [];
+  if (rj.duplicate) p.push(`dup ${rj.duplicate}`);
+  if (rj.lowdiff) p.push(`low ${rj.lowdiff}`);
+  if (rj.stale) p.push(`stale ${rj.stale}`);
+  if (rj.ntime) p.push(`ntime ${rj.ntime}`);
+  if (rj.version) p.push(`ver ${rj.version}`);
+  if (rj.format) p.push(`fmt ${rj.format}`);
+  return p.join(' · ');
+}
+
+// ---- fixed-position miner cards (insertion order, update in place) ----
+const cards = new Map();
+function card(name) {
+  let c = cards.get(name);
+  if (c) return c;
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = `
+    <div class="top"><span class="nm"></span><span class="ago"></span></div>
+    <div class="agent"></div>
+    <div class="ad"></div>
+    <div class="hr"><span class="n"></span> <small></small></div>
+    <div class="row">
+      <div class="cell"><div class="k">ACC</div><div class="v acc"></div></div>
+      <div class="cell"><div class="k">REJ</div><div class="v rej"></div></div>
+      <div class="cell"><div class="k">EFF</div><div class="v eff"></div></div>
+      <div class="cell"><div class="k">DIFF</div><div class="v df"></div></div>
+      <div class="cell"><div class="k">BEST</div><div class="v bs"></div></div>
+    </div>
+    <div class="bd"></div>
+    <div class="crack"><span class="p">crack></span> <span class="hx"></span></div>`;
+  $('miners').appendChild(el);
+  c = {
+    el,
+    nm: el.querySelector('.nm'), ago: el.querySelector('.ago'),
+    agent: el.querySelector('.agent'), ad: el.querySelector('.ad'),
+    hrN: el.querySelector('.hr .n'), hrU: el.querySelector('.hr small'),
+    acc: el.querySelector('.v.acc'), rej: el.querySelector('.v.rej'),
+    eff: el.querySelector('.v.eff'),
+    df: el.querySelector('.v.df'), bs: el.querySelector('.v.bs'),
+    bd: el.querySelector('.bd'), crack: el.querySelector('.crack .hx'),
+  };
+  cards.set(name, c);
+  return c;
+}
+
+// ---- health bar (traffic lights) ----
+function setPill(dotId, valId, cls, text) { $(dotId).className = 'dot ' + cls; $(valId).textContent = text; }
+function gbtAgeSecs(st) { return st.tm && st.tm.lastGbtAt ? (st.now - st.tm.lastGbtAt) / 1000 : Infinity; }
+function rejectRate(st) {
+  const tot = (st.totalAccepted || 0) + (st.totalRejected || 0);
+  return tot > 0 ? (st.totalRejected / tot) * 100 : 0;
+}
+function progressFrac(st) {
+  const nd = st.job ? st.job.networkDiff : 0;
+  return nd > 0 ? st.totalDiffSum / nd : 0;
+}
+function updateHealth(st) {
+  const tm = st.tm || {};
+  setPill('h-zmq-d', 'h-zmq', tm.zmqAlive ? 'ok' : 'warn', tm.zmqAlive ? 'live' : 'poll');
+  const nodeOk = gbtAgeSecs(st) < 120;
+  setPill('h-node-d', 'h-node', nodeOk ? 'ok' : 'bad', nodeOk ? 'synced' : 'stalled');
+  const g = tm.gbtMs || 0;
+  setPill('h-gbt-d', 'h-gbt', g < 200 ? 'ok' : g < 1000 ? 'warn' : 'bad', g + 'ms');
+  const rr = rejectRate(st);
+  setPill('h-rej-d', 'h-rej', rr < 2 ? 'ok' : rr < 8 ? 'warn' : 'bad', rr.toFixed(rr < 1 ? 2 : 1) + '%');
+  const prog = progressFrac(st);
+  setPill('h-prog-d', 'h-prog', prog > 1 ? 'warn' : 'ok', fmtPct(prog * 100));
+}
+
+// ---- alerts panel ----
+let payoutWarn = false;
+function updateAlerts(st) {
+  const a = [], tm = st.tm || {};
+  if (!tm.zmqAlive) a.push(['warn', 'ZMQ is down — running on the poll fallback. New-block detection is slower; check bitcoind zmqpubhashblock.']);
+  const ga = gbtAgeSecs(st);
+  if (ga >= 120) a.push(['bad', 'No fresh getblocktemplate in ' + (isFinite(ga) ? Math.round(ga) + 's' : 'a while') + ' — the node may be unreachable or stalled.']);
+  const tot = (st.totalAccepted || 0) + (st.totalRejected || 0);
+  const rr = rejectRate(st);
+  if (tot > 50 && rr >= 8) a.push(['warn', 'High reject rate ' + rr.toFixed(1) + '% — check miner clocks and difficulty.']);
+  if (payoutWarn) a.push(['bad', 'A miner authorized with an INVALID address — its blocks would pay the DEFAULT wallet. Open LOGS and fix that worker username.']);
+  const box = $('alerts');
+  box.innerHTML = a.map(([c, t]) => `<div class="alert ${c}">⚠ ${t}</div>`).join('');
+  box.classList.toggle('show', a.length > 0);
+}
+async function fetchLogsForAlerts() {
+  try {
+    const j = await (await fetch('/api/logs?n=400', { cache: 'no-store' })).json();
+    payoutWarn = (j.lines || []).some((l) => l.includes('PAYOUT WARNING'));
+  } catch { /* dashboard still works without it */ }
+}
+
+// ---- copy diag (one blob → AI) ----
+function copyDonate() {
+  try {
+    navigator.clipboard.writeText('bc1q6278q0a0ttmhjc0jhhaut6ekk2waf045yhql3s');
+    const el = $('donate-addr'); el.classList.add('copied');
+    setTimeout(() => el.classList.remove('copied'), 1600);
+  } catch { /* clipboard blocked on http: address is selectable to copy manually */ }
+}
+async function copyDiag() {
+  const btn = $('copydiag');
+  try {
+    const txt = await (await fetch('/api/diag', { cache: 'no-store' })).text();
+    await navigator.clipboard.writeText(txt);   // needs https or localhost
+    btn.textContent = '✓ COPIED (' + Math.round(txt.length / 1024) + ' KB)';
+    btn.classList.add('done');
+  } catch {
+    window.open('/api/diag', '_blank');          // LAN http: clipboard blocked → open it
+    btn.textContent = '⧉ OPENED /api/diag';
+  }
+  setTimeout(() => { btn.textContent = '⧉ COPY DIAG (for AI)'; btn.classList.remove('done'); }, 2600);
+}
+
+// ---- sparklines: seeded from persisted statsHistory, then live ----
+const SPARK_MAX = 120, sparkHr = [], sparkProg = [];
+let lastSparkAt = 0;
+function drawSpark(id, vals, color) {
+  const svg = $(id);
+  if (vals.length < 2) { svg.innerHTML = ''; return; }
+  const min = Math.min(...vals), max = Math.max(...vals), span = (max - min) || 1, n = vals.length;
+  const pts = vals.map((v, i) => `${((i / (n - 1)) * 100).toFixed(2)},${(32 - ((v - min) / span) * 30).toFixed(2)}`).join(' ');
+  const ly = (32 - ((vals[n - 1] - min) / span) * 30).toFixed(2);
+  svg.innerHTML = `<polyline fill="none" stroke="${color}" stroke-width="1.4" stroke-linejoin="round" points="${pts}"/><circle cx="100" cy="${ly}" r="1.8" fill="${color}"/>`;
+}
+function redrawSparks() {
+  drawSpark('spark-hr', sparkHr, '#56d9ff');
+  drawSpark('spark-prog', sparkProg, '#ffd166');
+  if (sparkHr.length) $('tr-hr').textContent = fmtHrParts(sparkHr[sparkHr.length - 1]).join(' ');
+  if (sparkProg.length) $('tr-prog').textContent = fmtPct(sparkProg[sparkProg.length - 1] * 100);
+}
+function pushSpark(st) {
+  const now = Date.now();
+  if (now - lastSparkAt < 20000) return;        // one live sample / 20s
+  lastSparkAt = now;
+  sparkHr.push(st.poolHashrate || 0);
+  sparkProg.push(progressFrac(st));
+  if (sparkHr.length > SPARK_MAX) sparkHr.shift();
+  if (sparkProg.length > SPARK_MAX) sparkProg.shift();
+  redrawSparks();
+}
+async function seedTrends() {
+  try {
+    const d = await (await fetch('/api/diag', { cache: 'no-store' })).json();
+    for (const s of (d.statsHistory || [])) {
+      if (typeof s.hashrate === 'number') sparkHr.push(s.hashrate);
+      if (typeof s.progress === 'number') sparkProg.push(s.progress);
+    }
+    while (sparkHr.length > SPARK_MAX) sparkHr.shift();
+    while (sparkProg.length > SPARK_MAX) sparkProg.shift();
+    redrawSparks();
+  } catch { /* no history yet */ }
+}
+
+function render(st) {
+  const now = st.now;
+  updateHealth(st);
+  updateAlerts(st);
+  pushSpark(st);
+  if (st.version) $('ver').textContent = 'v' + st.version;
+  $('s-hr').textContent = fmtHrParts(st.poolHashrate).join(' ');
+  $('s-best').textContent = st.bestShareEver > 0 ? fmtN(st.bestShareEver) : '—';
+  $('s-m').textContent = st.miners.length;
+  $('s-b').textContent = st.blocksFound.length;
+
+  if (st.job) {
+    $('s-nd').textContent = fmtN(st.job.networkDiff);
+    $('s-h').textContent = st.job.height.toLocaleString('en-US');
+    $('j-id').textContent = st.job.id;
+    $('j-kind').textContent = st.job.kind;
+    $('j-tx').textContent = st.job.txCount;
+    $('j-rw').textContent = (Number(st.job.valueSats) / 1e8).toFixed(8) + ' BTC';
+    $('j-age').textContent = (st.job.age / 1000).toFixed(0) + 's';
+  }
+  $('j-gbt').textContent = st.tm.gbtMs + 'ms';
+  const z = $('j-zmq');
+  z.textContent = st.tm.zmqAlive ? 'LIVE' : 'POLL';
+  z.className = st.tm.zmqAlive ? 'live' : 'down';
+  $('j-prev').textContent = st.job ? st.job.prevhash.slice(0, 20) + '…' : '—';
+  $('j-up').textContent = ago(st.startedAt, now);
+
+  // difficulty retarget (computed by the pool from YOUR node's chain)
+  const rt = st.tm.retarget;
+  if (rt) {
+    const up = rt.estChangePct >= 0;
+    const a = $('s-adj');
+    a.textContent = (up ? '▲ +' : '▼ ') + rt.estChangePct.toFixed(2) + '%';
+    a.className = 'v ' + (up ? 'adj-up' : 'adj-down');
+    $('s-ret').textContent = rt.etaDays.toFixed(1) + 'd · #' + rt.retargetHeight.toLocaleString('en-US');
+  }
+
+  // best share ribbon
+  if (st.best && st.best.value > 0) {
+    $('best').classList.add('show');
+    $('b-val').textContent = fmtN(st.best.value);
+    const pct = st.job ? (st.best.value / st.job.networkDiff * 100) : 0;
+    $('b-pct').textContent = fmtPct(pct);
+    const bw = st.best.worker || '';
+    const bd = bw.indexOf('.');
+    $('b-who').textContent = (bd > 24) ? shortAddr(bw.slice(0, bd)) + bw.slice(bd) : bw;
+    $('b-ago').textContent = ago(st.best.at, now) + ' ago';
+    $('b-hash').innerHTML = hashHtml(st.best.hash);
+  }
+
+  // miner cards (stable order, in-place)
+  for (const m of st.miners) {
+    const c = card(m.name);
+    c.nm.textContent = workerShort(m.name, m.address);
+    const idle = (now - m.lastShare) / 1000;
+    c.ago.textContent = ago(m.lastShare, now);
+    c.ago.className = 'ago' + (idle < 30 ? ' hot' : '');
+    c.agent.innerHTML = `${m.agent || '—'}${m.versionRolling ? ' <span class="vr">[vr]</span>' : ''}${m.sessions > 1 ? ` ×${m.sessions}` : ''}`;
+    c.ad.textContent = m.address ? '→ ' + shortAddr(m.address) : '';
+    const [hn, hu] = fmtHrParts(m.hashrate);
+    c.hrN.textContent = hn; c.hrU.textContent = hu;
+    c.acc.textContent = m.accepted;
+    c.rej.textContent = m.rejected;
+    c.rej.className = 'v rej' + (m.rejected ? '' : ' zero');
+    const tot = m.accepted + m.rejected;
+    const eff = tot > 0 ? (m.accepted / tot) * 100 : 100;
+    c.eff.textContent = tot > 0 ? eff.toFixed(eff >= 99.95 ? 0 : 1) + '%' : '—';
+    c.eff.className = 'v eff' + (eff < 90 ? ' low' : eff < 99 ? ' mid' : '');
+    c.df.textContent = fmtN(m.diff);
+    c.bs.textContent = m.bestShare > 0 ? fmtN(m.bestShare) : '—';
+    c.bd.textContent = rejText(m);
+    c.crack.innerHTML = hashHtml(m.lastShareHash);
+    c.el.classList.toggle('off', idle > 90);
+  }
+  // drop cards the server purged
+  const live = new Set(st.miners.map((m) => m.name));
+  for (const [name, c] of cards) if (!live.has(name)) { c.el.remove(); cards.delete(name); }
+
+  // blocks found
+  if (st.blocksFound.length) {
+    $('blocks').innerHTML = st.blocksFound.slice().reverse().map((b) => `
+      <div class="bcard">
+        <span class="t">#${b.height}</span>
+        <span class="sep">·</span> <span style="color:var(--ok)">${b.worker}</span>
+        <span class="sep">·</span> <span style="color:var(--gold)">${(Number(b.valueSats || 0) / 1e8).toFixed(8)} BTC</span>
+        <span class="sep">·</span> <span style="color:var(--addr)">${shortAddr(b.payoutAddress || '')}</span>
+        <span class="sep">·</span> <span class="lbl">${b.submitResult}</span><br>
+        <span class="hx">${b.hash}</span>
+      </div>`).join('');
+  }
+}
+
+function showBlock(b) {
+  $('o-h').textContent = '#' + b.height;
+  $('o-hash').textContent = b.hash;
+  $('o-worker').textContent = b.worker;
+  $('o-pay').textContent = b.payoutAddress || '';
+  $('o-rw').textContent = (Number(b.valueSats || 0) / 1e8).toFixed(8) + ' BTC';
+  $('o-sd').textContent = fmtN(b.shareDiff || 0);
+  $('o-nd').textContent = fmtN(b.networkDiff || 0);
+  $('o-nonce').textContent = b.nonce ?? '';
+  $('o-ver').textContent = b.version ?? '';
+  $('o-nt').textContent = b.ntime ?? '';
+  $('o-tx').textContent = b.txCount ?? '';
+  $('o-sub').textContent = b.submitResult ?? '';
+  $('ovl').classList.add('show');
+}
+
+// ---- live BTC/USD price (fetched by YOUR BROWSER, not by the pool server,
+// so the pool keeps zero outbound connections; hides itself if no internet) ----
+async function fetchPrice() {
+  try {
+    const r = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot', { cache: 'no-store' });
+    const v = Number((await r.json()).data.amount);
+    if (v > 0) { $('s-price').textContent = '$' + Math.round(v).toLocaleString('en-US'); return; }
+    throw 0;
+  } catch {
+    try {
+      const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', { cache: 'no-store' });
+      const v = (await r.json()).bitcoin.usd;
+      if (v > 0) $('s-price').textContent = '$' + Math.round(v).toLocaleString('en-US');
+    } catch { /* LAN-only browser: leave the dash */ }
+  }
+}
+fetchPrice();
+setInterval(fetchPrice, 60000);
+
+// ---- SSE with auto-reconnect ----
+let es;
+function connect() {
+  es = new EventSource('/events');
+  es.addEventListener('state', (e) => { $('conn').classList.remove('show'); render(JSON.parse(e.data)); });
+  es.addEventListener('block', (e) => showBlock(JSON.parse(e.data)));
+  es.onerror = () => { $('conn').classList.add('show'); };
+}
+connect();
+
+// trends + alert-log polling (browser-side; pool stays passive)
+// fill the Stratum URL with whatever host the dashboard was opened on
+$('c-url').textContent = 'stratum+tcp://' + (location.hostname || 'umbrel.local') + ':2038';
+seedTrends();
+fetchLogsForAlerts();
+setInterval(fetchLogsForAlerts, 30000);
+</script>
+</body>
+</html>
