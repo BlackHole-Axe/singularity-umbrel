@@ -10,10 +10,12 @@ services:
       PROXY_AUTH_WHITELIST: "/api/state,/events,/api/logs,/api/diag,/widget-api/*"
 
   pool:
+    # The pre-start hook builds this image on-device from the bundled pool/ source,
+    # so install works without publishing to a registry. compose finds it ready.
     build:
       context: ${APP_DATA_DIR}/pool
       dockerfile: Dockerfile
-    image: singularity-pool:umbrel-local
+    image: ghcr.io/blackhole-axe/singularity-pool:latest
     pull_policy: build
     container_name: singularity-pool_pool_1
     restart: on-failure

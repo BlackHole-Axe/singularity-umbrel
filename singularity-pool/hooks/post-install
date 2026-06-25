@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DATA_DIR="$(readlink -f "${HOOK_DIR}/..")"
+mkdir -p "${APP_DATA_DIR}/data"
+chmod +x "${APP_DATA_DIR}/hooks/"* 2>/dev/null || true
+echo "SINGULARITY: data dir ready at ${APP_DATA_DIR}/data"

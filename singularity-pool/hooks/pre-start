@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${HOOK_DIR}/common.sh"
+APP_DATA_DIR="$(readlink -f "${HOOK_DIR}/..")"
+mkdir -p "${APP_DATA_DIR}/data"
+# Runs before compose up — build the image so compose always finds it.
+singularity_build_image "${APP_DATA_DIR}"
+echo "SINGULARITY (${SINGULARITY_APP_ID}): pre-start build done"
